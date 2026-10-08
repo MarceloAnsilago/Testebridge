@@ -8,12 +8,21 @@ st.set_page_config(page_title='MT5 Optimization Bridge', page_icon='📊', layou
 st.title('MT5 Optimization Bridge')
 st.caption('Streamlit Cloud → seu PC → Strategy Tester do MT5')
 
+try:
+    saved_bridge = dict(st.secrets.get('bridge', {}))
+except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
+    saved_bridge = {}
+
 with st.sidebar:
     st.header('Conectar ao seu PC')
     st.caption('Inicie a API e o túnel no Windows. A chave autoriza somente os testes desta bridge.')
     with st.form('connection_form'):
-        url = st.text_input('URL da bridge', placeholder='https://nome-do-tunel.trycloudflare.com')
-        token = st.text_input('Chave de acesso', type='password')
+        url = st.text_input('URL da bridge', value=saved_bridge.get('url', ''), placeholder='https://nome-do-tunel.trycloudflare.com')
+        if saved_bridge.get('token'):
+            token = saved_bridge['token']
+            st.caption('Chave salva nos Secrets do aplicativo.')
+        else:
+            token = st.text_input('Chave de acesso', type='password')
         connect = st.form_submit_button('Conectar')
     if connect:
         for key in ('connection','job_id','pending_request','pending_payload','result','health'):
@@ -47,21 +56,27 @@ if connection:
 else:
     st.info('Conecte sua bridge na barra lateral para habilitar as otimizações.')
 
+def heavy_preset():
+    st.session_state.update(test_start=date(2025,1,1), test_end=date(2026,1,1),
+                            test_period='H1', test_ma_start=5, test_ma_step=1, test_ma_stop=1004)
+
+st.button('Carregar teste pesado — 1.000 passes / 2025 inteiro', on_click=heavy_preset)
+
 with st.form('optimization'):
     st.subheader('Parâmetros do teste')
     a,b,c=st.columns(3)
     symbol=a.text_input('Símbolo exato','EURUSD')
-    period=b.selectbox('Período',PERIODS,index=PERIODS.index('H1'))
+    period=b.selectbox('Período',PERIODS,index=PERIODS.index('H1'),key='test_period')
     currency=c.text_input('Moeda','USD')
     a,b,c=st.columns(3)
-    start=a.date_input('Data inicial',date(2025,1,1))
-    end=b.date_input('Data final (limite do teste)',date(2025,2,1))
+    start=a.date_input('Data inicial',date(2025,1,1),key='test_start')
+    end=b.date_input('Data final (limite do teste)',date(2025,2,1),key='test_end')
     deposit=c.number_input('Depósito',min_value=1.0,max_value=100000000.0,value=10000.0)
     st.subheader('Intervalo da média móvel')
     a,b,c=st.columns(3)
-    ma_start=a.number_input('MA inicial',min_value=1,max_value=10000,value=5,step=1)
-    ma_step=b.number_input('Passo',min_value=1,max_value=10000,value=5,step=1)
-    ma_stop=c.number_input('MA final',min_value=1,max_value=10000,value=20,step=1)
+    ma_start=a.number_input('MA inicial',min_value=1,max_value=10000,value=5,step=1,key='test_ma_start')
+    ma_step=b.number_input('Passo',min_value=1,max_value=10000,value=5,step=1,key='test_ma_step')
+    ma_stop=c.number_input('MA final',min_value=1,max_value=10000,value=20,step=1,key='test_ma_stop')
     st.caption('EA de teste • SL 400 pontos • TP 800 pontos • lote mínimo. Feche o MT5 antes de iniciar. Prazo máximo: 10 minutos; no timeout o terminal é preservado.')
     submit=st.form_submit_button('OTIMIZAR NO MT5',type='primary',disabled=not connection)
 
